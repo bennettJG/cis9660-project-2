@@ -1,1 +1,3 @@
 # cis9660-project-2
+
+Data used is a subset of the 2025-06-12 Kickstarter dataset (CSV format) available on https://webrobots.io/kickstarter-datasets/. Due to the large size of the dataset and hardware limitations on my personal computer, I chose to focus on data from 2024 and 2025. The code used to preprocess the data can be found in utils/process_data.py, and the processed dataset can be found in data/Full_Kickstarter_data.csv.
