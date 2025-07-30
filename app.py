@@ -60,6 +60,17 @@ def fit_model(X_train, y_train):
 def model_test(_model, X_test):
     y_pred = model.predict(X_test)
     return y_pred
+    
+css = '''
+<style>
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+    font-size:2rem;
+    padding-right: 20px;
+    }
+</style>
+'''
+
+st.markdown(css, unsafe_allow_html=True)
 
 subcategory_dict = {"All categories": [],
 "Film & Video": ['Narrative Film', 'Horror', 'Shorts', 'Thrillers', 'Drama', 'Comedy', 'Television', 'Documentary', 'Webseries', 'Animation' 'Science Fiction', 'Action', 'Experimental'],
@@ -86,15 +97,14 @@ tab1, tab2 = st.tabs(["Predict campaign outcome", "Explore the data"])
 
 with tab1:
     st.header('Input project details:')
-    #st.dataframe(KS_data.head(100))
-    usd_goal = st.number_input("Funding goal (US dollars):", min_value=0, value=1000, max_value=99999)
+    usd_goal = st.number_input("Funding goal (US dollars):", min_value=0, value=1000, max_value=99999, width=200)
     col1, col2, col3 = st.columns(3)
     with col1:
         country_options = sorted(KS_data["country"].unique())
         country = st.selectbox("Your country:", country_options, index=24)
         launch_date = st.date_input("Planned campaign launch date:", min_value="today")
         launch_hour = st.time_input("Planned campaign launch time:", value='12:00', step=3600)
-        days_active = st.number_input("Planned campaign length (days):", min_value=0, value=30)
+        days_active = st.number_input("Planned campaign length (days):", min_value=0, value=30, max_value=100)
     with col2:
         category = st.selectbox("Project category:", {k: v for k, v in subcategory_dict.items() if k != 'All categories'}, index=8)
         subcategory = st.selectbox("Subcategory:", subcategory_dict[category], placeholder="Select a category to see options", index=1)
@@ -114,48 +124,50 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### Confusion Matrix")
-        st.pyplot(ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels=['Failed','Successful']).figure_)
+        fig, ax = plt.subplots(figsize=(2, 2))
+        fig.patch.set_facecolor('#FAFAFA')
+        st.pyplot(ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels=['Failed','Successful'], ax=ax).figure_, use_container_width=False)
     with col2:
         st.markdown("### Classification Report")
         class_rpt = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
         class_rpt.index = ['Failed', 'Successful', 'Accuracy', 'Macro Avg', 'Weighted Avg']
         st.dataframe(class_rpt)
 with tab2:
-    # Dataset filtering for exploration
-    st.sidebar.markdown("## Dataset filters")
-    st.sidebar.markdown("---")
-
-    ## Country
-    country_options = ["All countries"]+sorted(KS_data["country"].unique())
-    selected_country_filter = st.sidebar.selectbox("Country", country_options)
-
     filtered_df = KS_data
+    # Dataset filtering for exploration
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown("## Dataset filters")
+    with col2:
+        ## Category
+        category_filter = st.selectbox("Category", subcategory_dict.keys())
+        subcategory_filter = st.selectbox("Subcategory", ['All subcategories'] + subcategory_dict[category_filter])
+    with col3:    
+        ## Funding goal
+        min_goal = int(KS_data["usd_goal"].min())
+        max_goal = int(KS_data["usd_goal"].max())
 
-    ## Funding goal
-    min_goal = int(KS_data["usd_goal"].min())
-    max_goal = int(KS_data["usd_goal"].max())
-
-    goal_range = st.sidebar.slider(
-        "Funding Goal (US Dollars)",
-        min_value=min_goal,
-        max_value=max_goal,
-        value=(min_goal, max_goal)
-    )
-
-    ## Launch date
-    min_date = filtered_df["launched_at"].dt.date.min()
-    max_date = filtered_df["launched_at"].dt.date.max()
-    start_date, end_date = st.sidebar.date_input(
-        "Launch Date Range",
-        [min_date, max_date],
-        min_value=min_date,
-        max_value=max_date,
-    )
-
-    ## Category
-    category_filter = st.sidebar.selectbox("Category", subcategory_dict.keys())
-    subcategory_filter = st.sidebar.selectbox("Subcategory", ['All subcategories'] + subcategory_dict[category_filter])
-
+        goal_range = st.slider(
+            "Funding Goal (US Dollars)",
+            min_value=min_goal,
+            max_value=max_goal,
+            value=(min_goal, max_goal)
+        )  
+        ## Launch date
+        min_date = filtered_df["launched_at"].dt.date.min()
+        max_date = filtered_df["launched_at"].dt.date.max()
+        start_date, end_date = st.date_input(
+            "Launch Date Range",
+            [min_date, max_date],
+            min_value=min_date,
+            max_value=max_date,
+        )        
+    with col4:
+        ## Country
+        country_options = ["All countries"]+sorted(KS_data["country"].unique())
+        selected_country_filter = st.selectbox("Country", country_options)
+    
+    st.markdown("---")
     filtered_df = filtered_df[
         (filtered_df["launched_at"].dt.date >= start_date) &
         (filtered_df["launched_at"].dt.date <= end_date) &
@@ -174,7 +186,7 @@ with tab2:
     successful_df = filtered_df[filtered_df["state_binary"]=="Reached goal"]
     failed_df = filtered_df[filtered_df["state_binary"]=="Did not reach goal"]
 
-    successfail_colors = {"Successful":'green', "Failed":'red'}
+    successfail_colors = {"Successful":'#05CE78', "Failed":'#C90B5D'}
     ## Data Explorer
     st.markdown("## Metrics")
 
@@ -182,7 +194,7 @@ with tab2:
         st.markdown("# No projects matching specified filters!")
     else:
         st.markdown("### Projects")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             col1a, col1b = st.columns(2)
             with col1a:
@@ -199,7 +211,7 @@ with tab2:
                 st.plotly_chart(fig, use_container_width=True)
             with col1b:
                 st.metric("Unique Creators", f'{len(filtered_df[filtered_df['creator_prev_projects']==0])}')
-        with col2:
+        with col3:
             if (selected_country_filter == "All countries"):
                 top_countries = (filtered_df['country'].value_counts().sort_values(ascending=False).head(10).
                     sort_values())
@@ -222,43 +234,43 @@ with tab2:
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.markdown("# Remove the Country filtering to see top countries by project count!")
-
-        if category_filter == "All categories":
-            fig = px.bar(
-                filtered_df,
-                y="parent_category",
-                color="state_binary",
-                color_discrete_map = successfail_colors,
-                title="Project Categories",
-                category_orders={'state_binary': ["Successful","Failed"]},
-                orientation="h"
-            )
-            fig.update_layout(
-                height=500,
-                yaxis_title="Category",
-                xaxis_title="# Projects",
-                barmode='stack', yaxis={'categoryorder':'total ascending'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        elif subcategory_filter == "All subcategories":
-            fig = px.bar(
-                filtered_df,
-                y="sub_category",
-                color="state_binary",
-                color_discrete_map = successfail_colors,
-                title="Project Categories",
-                orientation="h",
-                category_orders={'state_binary': ["Successful","Failed"]}
-            )
-            fig.update_layout(
-                height=500,
-                yaxis_title="Category",
-                xaxis_title="# Projects",
-                barmode='stack', yaxis={'categoryorder':'total ascending'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.markdown("## Remove the Subcategory filtering to see project counts by category or subcategory!")
+        with col2:
+            if category_filter == "All categories":
+                fig = px.bar(
+                    filtered_df,
+                    y="parent_category",
+                    color="state_binary",
+                    color_discrete_map = successfail_colors,
+                    title="Project Categories",
+                    category_orders={'state_binary': ["Successful","Failed"]},
+                    orientation="h"
+                )
+                fig.update_layout(
+                    height=500,
+                    yaxis_title="Category",
+                    xaxis_title="# Projects",
+                    barmode='stack', yaxis={'categoryorder':'total ascending'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            elif subcategory_filter == "All subcategories":
+                fig = px.bar(
+                    filtered_df,
+                    y="sub_category",
+                    color="state_binary",
+                    color_discrete_map = successfail_colors,
+                    title="Project Categories",
+                    orientation="h",
+                    category_orders={'state_binary': ["Successful","Failed"]}
+                )
+                fig.update_layout(
+                    height=500,
+                    yaxis_title="Category",
+                    xaxis_title="# Projects",
+                    barmode='stack', yaxis={'categoryorder':'total ascending'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.markdown("## Remove the Subcategory filtering to see project counts by category or subcategory!")
         st.markdown("---")
         st.markdown("### Funding")
         st.markdown("These plots frequently contain outliers - zoom in to see the distribution more clearly!")
