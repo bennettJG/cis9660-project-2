@@ -5,3 +5,4 @@ seaborn
 datetime
 plotly
 scikit-learn
+streamlit
