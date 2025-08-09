@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import date, datetime
 import json
-import glob
+import pickle
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay, RocCurveDisplay
 
 random_state = 1701
 
@@ -54,6 +54,7 @@ def process_data(KS_data):
 def fit_model(X_train, y_train):
     model = SVC(random_state=random_state, class_weight='balanced')
     model.fit(X_train, y_train)
+    pickle.dump(model, open('Kickstarter SVM.sav', 'wb'))
     return model
     
 @st.cache_data
@@ -90,10 +91,10 @@ subcategory_dict = {"All categories": [],
 
 KS_data = load_data()
 pipe, X_train, X_test, y_train, y_test = process_data(KS_data)
-model = fit_model(X_train, y_train)
+model = pickle.load(open('Kickstarter SVM.sav', 'rb')) #fit_model(X_train, y_train) 
 y_pred = model_test(model, X_test)
 
-tab1, tab2 = st.tabs(["Predict campaign outcome", "Explore the data"])
+tab1, tab2, tab3 = st.tabs(["Predict campaign outcome", "About the model", "Explore the data"])
 
 with tab1:
     st.header('Input project details:')
@@ -119,10 +120,10 @@ with tab1:
     project_data = pd.DataFrame({'usd_goal': usd_goal, 'country':country, 'parent_category':category, 'sub_category':subcategory, 'backing_action_count':backing_action_count, 'has_video':has_video, 'creator_prev_projects':creator_prev_projects, 'launch_day':launch_date.strftime("%A"), 'hours_from_noon':abs(12-int(launch_hour.strftime("%H"))), 'launch_month':int(launch_date.strftime("%m")), 'prelaunch_activated':prelaunch_activated, 'blurb_length':len(blurb), 'staff_pick':staff_pick, 'days_active':days_active}, index=[0])
     prediction = ":green[Likely to reach goal]" if model.predict(pipe.transform(project_data))==[1] else ":red[Unlikely to reach goal]"
     st.markdown(f"## Model Prediction: {prediction}")
-    st.markdown("---")
-    st.markdown("## About the model")
-    col1, col2 = st.columns(2)
+with tab2:
+    col1, col2, col3 = st.columns(3)
     with col1:
+        plt.rc('font', size=6)
         st.markdown("### Confusion Matrix")
         fig, ax = plt.subplots(figsize=(2, 2))
         fig.patch.set_facecolor('#FAFAFA')
@@ -132,7 +133,12 @@ with tab1:
         class_rpt = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
         class_rpt.index = ['Failed', 'Successful', 'Accuracy', 'Macro Avg', 'Weighted Avg']
         st.dataframe(class_rpt)
-with tab2:
+    with col3:
+        st.markdown("### ROC Curve")
+        fig, ax = plt.subplots(figsize=(2,2))
+        fig.patch.set_facecolor('#FAFAFA')
+        st.pyplot(RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax).figure_, use_container_width=False)
+with tab3:
     filtered_df = KS_data
     # Dataset filtering for exploration
     col1, col2, col3, col4 = st.columns(4)
