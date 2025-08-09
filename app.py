@@ -50,6 +50,13 @@ def process_data(KS_data):
     # it can be used on user-input data.
     return pipe, X_train_scaled, X_test_scaled, y_train, y_test
     
+@st.cache_resource
+def fit_model(X_train, y_train):
+    model = SVC(random_state=random_state, class_weight='balanced')
+    model.fit(X_train, y_train)
+    pickle.dump(model, open('Kickstarter SVM.sav', 'wb'))
+    return model
+    
 @st.cache_data
 def model_test(_model, X_test):
     y_pred = model.predict(X_test)
@@ -84,7 +91,7 @@ subcategory_dict = {"All categories": [],
 
 KS_data = load_data()
 pipe, X_train, X_test, y_train, y_test = process_data(KS_data)
-model = pickle.load(open('Kickstarter SVM.sav', 'rb')) 
+model = fit_model(X_train, y_train) 
 y_pred = model_test(model, X_test)
 
 tab1, tab2, tab3 = st.tabs(["Predict campaign outcome", "About the model", "Explore the data"])
